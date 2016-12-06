@@ -67,6 +67,7 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
   private StreamAllocation streamAllocation;
   private Object callStackTrace;
   private volatile boolean canceled;
+    private int failTryCount;
 
   public RetryAndFollowUpInterceptor(OkHttpClient client, boolean forWebSocket) {
     this.client = client;
@@ -108,6 +109,7 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
 
     int followUpCount = 0;
     Response priorResponse = null;
+      failTryCount = 0;
     while (true) {
       if (canceled) {
         streamAllocation.release();
@@ -125,12 +127,14 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
           throw e.getLastConnectException();
         }
         releaseConnection = false;
+          failTryCount++;
         continue;
       } catch (IOException e) {
         // An attempt to communicate with a server failed. The request may have been sent.
         boolean requestSendStarted = !(e instanceof ConnectionShutdownException);
         if (!recover(e, requestSendStarted, request)) throw e;
         releaseConnection = false;
+          failTryCount++;
         continue;
       } finally {
         // We're throwing an unchecked exception. Release any resources.
@@ -210,6 +214,9 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
 
     // The application layer has forbidden retries.
     if (!client.retryOnConnectionFailure()) return false;
+
+      // Limit the maximum fail try times, setting to equal or less than 0 means no limit.
+      if(client.getMaxFailTry() > 0 && failTryCount >= client.getMaxFailTry()) return false;
 
     // We can't send the request body again.
     if (requestSendStarted && userRequest.body() instanceof UnrepeatableRequestBody) return false;

@@ -201,6 +201,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
   final int connectTimeout;
   final int readTimeout;
   final int writeTimeout;
+  final int maxFailTry;
 
   public OkHttpClient() {
     this(new Builder());
@@ -246,6 +247,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     this.connectTimeout = builder.connectTimeout;
     this.readTimeout = builder.readTimeout;
     this.writeTimeout = builder.writeTimeout;
+    this.maxFailTry = builder.maxFailTry;
   }
 
   private X509TrustManager systemDefaultTrustManager() {
@@ -365,7 +367,12 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     return connectionSpecs;
   }
 
-  /**
+  // Limit the maximum fail try times, setting to equal or less than 0 means no limit.
+  public int getMaxFailTry() {
+    return maxFailTry;
+  }
+
+    /**
    * Returns an immutable list of interceptors that observe the full span of each call: from before
    * the connection is established (if any) until after the response source is selected (either the
    * origin server, cache, or both).
@@ -429,6 +436,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     int connectTimeout;
     int readTimeout;
     int writeTimeout;
+    int maxFailTry;
 
     public Builder() {
       dispatcher = new Dispatcher();
@@ -449,6 +457,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
       connectTimeout = 10_000;
       readTimeout = 10_000;
       writeTimeout = 10_000;
+      maxFailTry = 3;
     }
 
     Builder(OkHttpClient okHttpClient) {
@@ -477,9 +486,18 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
       this.connectTimeout = okHttpClient.connectTimeout;
       this.readTimeout = okHttpClient.readTimeout;
       this.writeTimeout = okHttpClient.writeTimeout;
+      this.maxFailTry = okHttpClient.maxFailTry;
     }
 
-    /**
+      /**
+       * Limit the maximum fail try times, setting to equal or less than 0 means no limit.
+       */
+      public Builder maxFailTry(int maxFailTry) {
+          this.maxFailTry = maxFailTry;
+          return this;
+      }
+
+      /**
      * Sets the default connect timeout for new connections. A value of 0 means no timeout,
      * otherwise values must be between 1 and {@link Integer#MAX_VALUE} when converted to
      * milliseconds.
